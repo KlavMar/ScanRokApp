@@ -1,0 +1,12 @@
+.venv/
+logs/
+img/
+extract/
+venv/
+__pycache__
+android/
+.vscode/
+.env
+data.db
+uv.lock
+*.toml

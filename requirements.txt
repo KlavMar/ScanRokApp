@@ -1,0 +1,16 @@
+pandas 
+PyQt6-WebEngine
+PyQt6
+qt_material
+numpy
+pure-python-adb
+requests
+pandas
+opencv-python
+python-dotenv
+pyautogui
+pyperclip
+pyinstaller
+Pillow
+
+pytesseract
