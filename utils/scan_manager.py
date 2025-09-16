@@ -137,7 +137,7 @@ class CoordScanOcrPlayers:
 
 class CoordsGamesInteraction:
     open_gov = 'input tap 70 54'
-    open_ranking_menu = "input tap 387 720"
+    open_ranking_menu = "input tap 687 720" # old 387 udate 11/09
     open_ranking_power = "input tap 280 500"
 
     input_gov_close = 'input tap 1454 90'

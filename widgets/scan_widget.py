@@ -10,19 +10,28 @@ import threading
 import configparser
 import os,sys
 from cores.process_scan import scan
-from utils.file_manager import ExportDataToCsv
+from utils.file_manager import ExportData
 
 class ScanThread(QThread):
     scan_finish = pyqtSignal()
-    def __init__(self,players,start_scan,power_min):
+    def __init__(self,players,start_scan,power_min,format_export):
           super().__init__()
          # self.kingdom = kingdom
           self.players = players
           self.start_scan =start_scan
           self.power_min = power_min
+          self.format = format_export
     def run(self):
         data = scan(nb_scan=self.players,start = self.start_scan,power_min=self.power_min)
-        ExportDataToCsv(data_scan = data).export_to_csv()
+
+        ## à changer ici en fonction d'une checkbok dans l'application
+        ## Voir pour intégrer dans une bdd local ? 
+        ## Ajoutez la fonction vers API -> pour collecter la donnée de façon automatique 
+        export_data = ExportData(data_scan=data)
+        if self.format == "csv":
+            export_data.export_to_csv()
+        else:
+            export_data.export_to_excel()
         self.scan_finish.emit()
 
 
@@ -52,6 +61,17 @@ class TabScan(QWidget):
         form_layout.addWidget(QLabel("Kingdom detect automatic while scan")) # line column
         #form_layout.addWidget(self.kingdom_choose)
 
+        form_layout.addWidget(QLabel("Choose your extract file"))
+
+        self.list_export = QComboBox()
+        self.list_export.addItems(["csv", "excel"])
+
+        # Mets à jour la variable dès que le texte change
+        self.list_export.currentTextChanged.connect(self.on_export_changed)
+        # Valeur initiale
+        self.current_export_choice = self.list_export.currentText()
+        logging.info(f"Format -> {self.current_export_choice}")
+        form_layout.addWidget(self.list_export)
         # Champ pour le numéro de départ
         form_layout.addWidget(QLabel("N° start " ))
         form_layout.addWidget(QLabel("you need to scroll to n° start before start scan"))
@@ -116,9 +136,17 @@ class TabScan(QWidget):
         players = int(self.players_number.text()) if self.players_number.text() else None
         power_min = int(self.power_min.text()) if self.power_min.text() else None
         start_scan = int(self.num_start.text())
-        self.scan_thread = ScanThread(players,start_scan,power_min=power_min)
+        format_export = self.current_export_choice
+        self.scan_thread = ScanThread(players,start_scan,power_min=power_min,format_export=format_export)
 
         self.scan_thread.start()
+
+
+
+    def on_export_changed(self, text: str):
+        self.current_export_choice = text
+        logging.info(f"Format -> {self.current_export_choice}")
+
 
 
     
