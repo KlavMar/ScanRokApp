@@ -11,7 +11,7 @@ class CoordScanOcrPlayers:
         roi = (874, 320, 180, 50)
         return roi 
     def get_kill_points(self):
-        roi=  (1170, 320, 224, 40)
+        roi=  (1185, 315, 224, 40)
         return roi 
     
     def get_civilisation(self):
@@ -145,3 +145,9 @@ class CoordsGamesInteraction:
     input_open_more_info = 'input tap 230 730'
     input_close_more_info = 'input tap 1400 55'
 
+    input_open_settings = 'input tap 1380 740'
+    input_open_characters = 'input tap 436 465'
+
+    swipe_top_characters = 'input swipe 800 340 800 269 1500'
+    swipe_account_characrers = 'input swipe 800 340 800 200 1500'
+    input_btn_confirm_change = 'input tap 1026 640'

@@ -11,8 +11,27 @@ import pandas as pd
 from cores.process_get_kd import ProcessGetKd
 import sys,os
 from utils.bluestack_manager import BluestackDeviceManager
-logger = logging.getLogger(__name__)
-def scan(nb_scan:int=None,start:int=None,power_min:int=None)->dict:
+import json
+from settings import BASE_DIR
+from utils.file_manager import ExportData
+
+logger = logging.getLogger(__name__)    
+
+def scan_get_devices():
+    manager = BluestackDeviceManager(port=5037)  
+    logger.info(manager.get_connect(port=5555))
+    devices = manager.get_devices()
+
+    if not devices:
+        logger.info("Aucun device détecté")
+        exit()
+
+    device = devices[0]
+    logger.info("Device connecté :%s" ,device)
+    return device
+
+def scan(nb_scan:int=None,start:int=None,power_min:int=None,device=None)->dict:
+    start_created = datetime.today().strftime("%H_%M_%S")
     Y=285
     start_time_scan= time.time() 
 
@@ -20,35 +39,30 @@ def scan(nb_scan:int=None,start:int=None,power_min:int=None)->dict:
     
     nb_scan = nb_scan if nb_scan else 1000
     coords_in_game = CoordsGamesInteraction()
-
+    if device == None:
+        device = scan_get_devices()
 
     data_scan = dict() # dictionnaire governor
-    manager = BluestackDeviceManager(port=5037)  
-    logger.info(manager.get_connect(port=5555))
-    devices = manager.get_devices()
-    if not devices:
-        logger.info("Aucun device détecté")
-        exit()
 
-    device = devices[0]
-    logger.info("Device connecté :%s" ,device)
 
     kwargs = {"inversed":False}
     kwargs.update({"gray":True})
     ### copier toutes les images liés à chaque gouvernor 
     kingdom = ProcessGetKd(device=device).get_kingdom_by_image(**kwargs)
+
+   
     device.shell("input tap 377 33") 
     time.sleep(5.00)
     pyperclip.copy("")
     time.sleep(1.00)
     device.shell(coords_in_game.open_gov)
-    logging.info("open gov")
+    logger.info("open gov")
     time.sleep(1.00)
     device.shell(coords_in_game.open_ranking_menu)
-    logging.info("open ranking")
+    logger.info("open ranking")
     time.sleep(1.00)
     device.shell(coords_in_game.open_ranking_power)
-    logging.info("open ranking power")
+    logger.info("open ranking power")
     time.sleep(1.00)
     last_power = 10*10**10 
     governor_name_previous = ""
@@ -137,14 +151,20 @@ def scan(nb_scan:int=None,start:int=None,power_min:int=None)->dict:
                     threads.append(t)
                     t.start()
                 except Exception as e:
-                    logging.error(e)
+                    logger.error(e)
         for t in threads:
             t.join()
         last_power = data.get("power")
         end_time_scan_each = time.time()  
         device.shell(coords_in_game.input_gov_close)
         time.sleep(1.0)
-        data_scan.update({governor_id:data})
+       # data_scan.update({governor_id:data})
+        TODAY =datetime.today().strftime("%Y-%m-%d")
+
+        extract_dir = os.path.join(BASE_DIR,"extract",str(kingdom),str(TODAY))
+        os.makedirs(extract_dir,exist_ok=True)
+        with open(os.path.join(extract_dir,f"backup_{start_created}.ndjson"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
         logger.info("TIme: {:.2f} secondes".format(end_time_scan_each - start_time_scan_each)) 
         index_range_ppl+=1
 
@@ -152,11 +172,66 @@ def scan(nb_scan:int=None,start:int=None,power_min:int=None)->dict:
     time.sleep(1)
     device.shell(coords_in_game.input_close_more_info)
     time.sleep(1)
-    device.shell(coords_in_game.input_gov_close)
+    #device.shell(coords_in_game.input_gov_close)
     end_time_scan= time.time()  
     global_time = end_time_scan - start_time_scan
     formatted_time = time.strftime("%H:%M:%S", time.gmtime(global_time))
-    logging.info("Global time: {}".format(formatted_time))
-    return data_scan
+    logger.info("Global time: {}".format(formatted_time))
+    return {"kingdom":kingdom,"time_created":start_created}
 
 
+
+
+def multi_scan(multi_kd:bool,nb_scan_kd:int,*args,**kwargs)->dict:
+    nb_scan = kwargs.get("players")
+    start=kwargs.get("start_scan")
+    power_min=kwargs.get("power_min")
+    format_export = kwargs.get('format_export')
+    rois=[(400,240,120,50),(1000,240,120,50)]
+    coords_in_game = CoordsGamesInteraction()
+    device = scan_get_devices()
+    for kd in range(1,nb_scan_kd+1):
+        """ ecrire le process de selection de kd ?"""
+        """ Scan => """
+        data = scan(nb_scan=nb_scan,start = start,power_min=power_min,device=device)
+        export_data = ExportData(el=data)
+        if format_export == "csv":
+            export_data.export_to_csv()
+        else:
+            export_data.export_to_excel()
+        """ ecrire le process de changement de kd """
+        time.sleep(5)
+        #logger.info("open menu")
+        #device.shell(coords_in_game.open_gov)
+        logger.info("Open settings")
+        device.shell(coords_in_game.input_open_settings)
+        time.sleep(2)
+        logger.info("open characters")
+        device.shell(coords_in_game.input_open_characters)
+        time.sleep(2)
+        logger.info("swipe header")
+        device.shell(coords_in_game.swipe_top_characters)
+        time.sleep(2)
+        if kd == nb_scan_kd:
+            roi = rois[0]
+            device.shell(f"input tap {roi[0]} {roi[1]}")
+            time.sleep(2)
+            logger.info("return origin kd")
+            device.shell(coords_in_game.input_btn_confirm_change)
+            time.sleep(30)
+        
+        for _ in range(kd//2):
+            logger.info("swipe search kd")
+            device.shell(coords_in_game.swipe_account_characrers)
+
+        if kd%2 ==0:
+            roi = rois[0]
+        else:
+            roi = rois[1]
+
+        time.sleep(2)
+        device.shell(f"input tap {roi[0]} {roi[1]}")
+        time.sleep(5)
+        device.shell(coords_in_game.input_btn_confirm_change)
+        time.sleep(30)
+            

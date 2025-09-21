@@ -92,7 +92,7 @@ class GetDataImageRoi:
         else:
             try:
                 values=StandarsValueScanOcr(self.data_image).get_value_int()
-                list_px =[i for i in range(11,201,2)]
+                list_px =[i for i in range(17,201,2)]
                 counter = 0
                 while values == 0 and self.last_power >= 40000000 and counter < 21:
                     px = list_px[counter]

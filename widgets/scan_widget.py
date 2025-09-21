@@ -9,29 +9,23 @@ from PyQt6.QtCore import QTimer,QProcess,pyqtSignal,QThread,QTimer, QIODevice, Q
 import threading
 import configparser
 import os,sys
-from cores.process_scan import scan
-from utils.file_manager import ExportData
+from cores.process_scan import scan,multi_scan
 
 class ScanThread(QThread):
     scan_finish = pyqtSignal()
-    def __init__(self,players,start_scan,power_min,format_export):
+    def __init__(self,multi_kd,nb_kd,*args,**kwargs):
           super().__init__()
-         # self.kingdom = kingdom
-          self.players = players
-          self.start_scan =start_scan
-          self.power_min = power_min
-          self.format = format_export
+          self.multi_kd = multi_kd
+          self.nb_kd = nb_kd
+          self.kwargs  = kwargs
+          
     def run(self):
-        data = scan(nb_scan=self.players,start = self.start_scan,power_min=self.power_min)
+        data = multi_scan(multi_kd=self.multi_kd,nb_scan_kd=self.nb_kd,**self.kwargs)
 
         ## à changer ici en fonction d'une checkbok dans l'application
         ## Voir pour intégrer dans une bdd local ? 
         ## Ajoutez la fonction vers API -> pour collecter la donnée de façon automatique 
-        export_data = ExportData(data_scan=data)
-        if self.format == "csv":
-            export_data.export_to_csv()
-        else:
-            export_data.export_to_excel()
+
         self.scan_finish.emit()
 
 
@@ -60,7 +54,15 @@ class TabScan(QWidget):
         self.kingdom_choose = QLineEdit()
         form_layout.addWidget(QLabel("Kingdom detect automatic while scan")) # line column
         #form_layout.addWidget(self.kingdom_choose)
+        form_layout_h = QHBoxLayout()
+        form_layout_h.addWidget(QLabel("Presh button for scan multi kd"))
 
+        self.num_kd_to_scan = QLineEdit()
+        self.multi_kd = QCheckBox()
+        form_layout_h.addWidget(self.multi_kd)
+        form_layout_h.addWidget(QLabel("Number of kd to scan"))
+        form_layout_h.addWidget(self.num_kd_to_scan)
+        form_layout.addLayout(form_layout_h)
         form_layout.addWidget(QLabel("Choose your extract file"))
 
         self.list_export = QComboBox()
@@ -73,24 +75,25 @@ class TabScan(QWidget):
         logging.info(f"Format -> {self.current_export_choice}")
         form_layout.addWidget(self.list_export)
         # Champ pour le numéro de départ
-        form_layout.addWidget(QLabel("N° start " ))
-        form_layout.addWidget(QLabel("you need to scroll to n° start before start scan"))
+        form_layout_h_kd_scan = QHBoxLayout()
+        form_layout_h_kd_scan.addWidget(QLabel("N° start " ))
+        form_layout_h_kd_scan.addWidget(QLabel("you need to scroll to n° start before start scan"))
         self.num_start = QLineEdit()
         self.num_start.setText("1")
-        form_layout.addWidget(self.num_start)
+        form_layout_h_kd_scan.addWidget(self.num_start)
 
         # Power min scan 
-        form_layout.addWidget(QLabel("Power min scan"))
+        form_layout_h_kd_scan.addWidget(QLabel("Power min scan"))
         self.power_min = QLineEdit()
-        form_layout.addWidget(self.power_min)
+        form_layout_h_kd_scan.addWidget(self.power_min)
         # Champ pour le nombre de joueurs
 
         
-        form_layout.addWidget(QLabel("Select number of players"))
+        form_layout_h_kd_scan.addWidget(QLabel("Select number of players"))
         self.players_number = QLineEdit()  # Ou utilisez QComboBox si nécessaire
-        form_layout.addWidget(self.players_number)
+        form_layout_h_kd_scan.addWidget(self.players_number)
         
-
+        form_layout.addLayout(form_layout_h_kd_scan)
         
 
         layout.addLayout(form_layout, 1, 0)
@@ -137,7 +140,16 @@ class TabScan(QWidget):
         power_min = int(self.power_min.text()) if self.power_min.text() else None
         start_scan = int(self.num_start.text())
         format_export = self.current_export_choice
-        self.scan_thread = ScanThread(players,start_scan,power_min=power_min,format_export=format_export)
+        multi_kd =  self.multi_kd.isChecked()
+        nb_kd = int(self.num_kd_to_scan.text()) if self.num_kd_to_scan.text() else None
+        kwargs = {
+            "players":players,
+            "start_scan":start_scan,
+            "power_min":power_min,
+            "format_export":format_export
+        }
+        logging.info(kwargs)
+        self.scan_thread = ScanThread(multi_kd,nb_kd,**kwargs)
 
         self.scan_thread.start()
 
