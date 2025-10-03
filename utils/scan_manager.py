@@ -8,7 +8,8 @@ class CoordScanOcrPlayers:
         return roi
 
     def get_power(self):
-        roi = (874, 320, 180, 50)
+        roi = (872, 320, 160, 40) #(image principale  )
+        #roi = (815,140,150,40) #(image more info )
         return roi 
     def get_kill_points(self):
         roi=  (1185, 315, 224, 40)
@@ -75,6 +76,7 @@ class CoordScanOcrPlayers:
 
     def get_more_info(self):
         return {
+
         "highest_power" : self.get_highest_power(),
         "victory" :self.get_victory(),
         "defeat" : self.get_defeat(),

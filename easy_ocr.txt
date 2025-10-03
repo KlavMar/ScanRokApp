@@ -1,0 +1,4 @@
+cd ~/.EasyOCR
+curl -L -o french_g2.zip https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/french_g2.zip
+unzip french_g2.zip
+rm french_g2.zip

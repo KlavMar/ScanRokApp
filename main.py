@@ -19,6 +19,8 @@ from widgets.scan_widget import TabScan
 from widgets.settings_widget import TabSettings
 from api_services.token_validator import gatekeeper_or_exit
 from cores.storage import StorageSqlite
+import threading
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -45,5 +47,6 @@ if __name__ == "__main__":
     app.setStyleSheet(qss)  # ← un seul setStyleSheet
     win = MainWindow()
     win.show()
+
 
     sys.exit(app.exec())

@@ -22,29 +22,35 @@ class GetValueImageScan:
         self.data = data
         self.index_ = index
         
-    def get_governor_name(self,*args,**kwargs):
+    def get_governor_name(self, *args, **kwargs):
+        import time, pyperclip
+
         governor_name_previous = kwargs.get("governor_name_previous")
-        
-        self.device.shell(self.roi)
-        time.sleep(0.5)
-        gov_name = pyperclip.paste()
+        max_retries = 5
+        sleep = 0.5
 
-        count =0 
-        while gov_name==governor_name_previous:
-            time.sleep(0.25)
-            logger.info("copie name")
-            time.sleep(0.25)
-            self.device.shell(self.get_governor_name())
-            time.sleep(0.5)
-            gov_name = pyperclip.paste()
-            count +=1
+        governor_name = ""
 
-            if gov_name != governor_name_previous:
-                break
-            if count > 5:
-                gov_name=self.index
-        logger.info(gov_name)
-        return gov_name
+        for attempt in range(max_retries):
+            # clic sur la zone de copie
+            self.device.shell(self.roi)
+            time.sleep(sleep)
+
+            try:
+                governor_name = pyperclip.paste().strip()
+            except Exception as e:
+                logger.warning(f"Clipboard read failed (attempt {attempt+1}): {e}")
+                governor_name = ""
+
+            if governor_name and governor_name != governor_name_previous:
+                logger.info(f"Governor name obtenu: {governor_name}")
+                return governor_name
+
+            time.sleep(sleep)
+
+        # fallback si rien
+        logger.warning("Impossible de copier le governor_name, fallback sur index")
+        return str(self.index_)
  
 
 
@@ -63,7 +69,11 @@ class GetDataImageRoi:
         self.last_power = last_power or 0
 
         # image prétraitée initiale
-        self.data_image = GetDataImage(image, roi, px_img=17, **self.kwargs).process_()
+        try:
+            self.data_image = GetDataImage(image, roi, px_img=17, **self.kwargs).process_()
+        except Exception as e:
+            logger.error(str(e))
+            pass
     def get_governor_id_kd(self):
         values=pytesseract.image_to_string(self.data_image,config='--psm 10 --oem 1')
         data_extract =  re.findall(r"(?!\#)([\d]+)",values) 
@@ -96,6 +106,7 @@ class GetDataImageRoi:
                 counter = 0
                 while values == 0 and self.last_power >= 40000000 and counter < 21:
                     px = list_px[counter]
+
                     self.data_image = GetDataImage(self.image,self.roi,px_img=px,kwargs=self.kwargs).process_()
                     values=StandarsValueScanOcr(self.data_image).get_value_int()
                     counter+=1

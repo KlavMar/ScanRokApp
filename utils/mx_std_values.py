@@ -8,6 +8,7 @@ class StandarsValueScanOcr:
     def get_value_int(self):
 
         value=pytesseract.image_to_string(self.image,config='--psm 7 --oem 1 -c tessedit_char_whitelist=0123456789')
+
         try:
             return int("".join(re.findall(r"[\d]*",value)))
         except:

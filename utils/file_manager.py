@@ -17,6 +17,7 @@ class ExportData:
         self.name = f"{self.extract_dir}/scan_{self.date}"
 
         self.filename_json = f'backup_{self.date}.ndjson'
+        print(self.filename_json)
         self.df  = self.create_df()
     
     def create_dir(self):
