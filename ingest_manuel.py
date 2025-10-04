@@ -37,7 +37,7 @@ class ConnectionPostgreSQL(ConnectionDb):
         mdp = super().parse_password()
         sqlEngine = create_engine(
             f'postgresql://{self.user}:{mdp}@{self.host}:{self.port}/{self.db}',
-            pool_recycle=1200
+            pool_recycle=1200,#echo=True
         )
         return sqlEngine
 
@@ -50,7 +50,7 @@ class ConnectionPostgreSQL(ConnectionDb):
         return connection.close()
 
 # Fonction de traitement du CSV vers la base de données SQL
-def traitement_csv_to_sql(path_file, db, df_=False):
+def traitement_csv_to_sql(path_file, df_=False):
     today = dt.datetime.now().date()
     # Lecture du fichier CSV
     if not df_:
@@ -86,7 +86,7 @@ def traitement_csv_to_sql(path_file, db, df_=False):
     
     return df
 
-def main(kvk=False):
+def main(kvk=True):
     # Paramètres de connexion
     if sys.argv[1]:
         delta = int(sys.argv[1])
@@ -95,7 +95,7 @@ def main(kvk=False):
     #db_conn = ConnectionMySQL("192.168.1.10", "3306", "ArzRtDb", "6Arzi@2Kival9@", "rok")
     db_conn = ConnectionPostgreSQL("192.168.1.10", "7000", "Arzpost", "6Arzi2Kival9", "platform_db")
     db = db_conn.get_connection()
-
+    db.rollback()
     # Chemin du répertoire principal
     base_path = Path(os.path.join(os.path.expanduser("~"), "Desktop", "scan", "extract"))
     kingdoms = os.listdir(base_path)
@@ -122,16 +122,14 @@ def main(kvk=False):
 
     # Traitement du DataFrame et préparation pour l'insertion SQL
     df["date"] = pd.to_datetime(today, format="%Y-%m-%d")
-    print(df.columns)
-    df = traitement_csv_to_sql(df, db, df_=True)
+    df = traitement_csv_to_sql(df,df_=True)
     #df = df.rename(columns={"id_kingdom": "id_kingdom_id"})
     df  = df.rename(columns={"tags":"tags_alliance","civilisation":"name_civilisation"})
-    # Renommer les colonnes avec '_kills' en majuscules
-    for col in df.filter(regex="_kills").columns:
-        df = df.rename(columns={col: col.upper()})
 
 
-    kvk = sys.argv[2]
+    kvk = sys.argv[2].lower() == "true"
+
+    
     try: 
         kingdom_filter = int(sys.argv[3])
     except :
@@ -143,35 +141,52 @@ def main(kvk=False):
         #df.loc[df.id_kingdom==1165].to_sql('rise_rawscandata', db, if_exists="append", index=False)
         print(df.head())
         df.columns = df.columns.str.lower()
-        if kingdom_filter is None:
+        #if kingdom_filter is None:
             
-            df.loc[(df.id_kingdom==1165) & (df.power>=1000000)].to_sql('scan_rawscandata', db, if_exists="append",schema="cores_services",index=False)
+          #  df.loc[(df.id_kingdom==1165) & (df.power>=1000000)].to_sql('scan_rawscandata', db, if_exists="append",schema="cores_services",index=False)
 
         if kvk == True:
-            url="https://riseofstat.com/api"
-            headers={
-            "api-key":"a718c71cbb169612110f48dc4d9f958a6459d85812f3aeb36871e4fc2244d9c0"
-            } 
-            api_route = "dbo/dim/kvk"
-            endpoint = "kvkdate"
-            url_ = f"{url}/{api_route}/{endpoint}?ordering=-id_kvk&limit=1"
-            r = requests.get(url_,headers=headers)
-            id_kvk  = r.json().get("results")[0].get("id_kvk")
-            df["id_kvk_id"] =int(id_kvk)
+            q = "SELECT id_kvk FROM cores_services.kvk_kvkdate ORDER BY date_begin DESC LIMIT 1"
 
-            df = df[df.power >=30000000]
+            df_kvk = pd.read_sql_query(q,con=db)
+            df["id_kvk_id"] =int(df_kvk.id_kvk.values[0])
+            print(df.head())
+
             if kingdom_filter:
                 df =df[df.id_kingdom == kingdom_filter]
-            df.to_sql('scan_rawscancamp', db, if_exists="append", schema="cores_services",index=False)
+            #df.to_sql('scan_rawscancamp', db, if_exists="append", schema="cores_services",index=False)
+            # nombre de lignes avant
+            count_before = pd.read_sql("SELECT COUNT(*) FROM cores_services.scan_rawscancamp;", db).iloc[0,0]
+
+            # insertion
+            engine = db_conn.get_sql_engine()
+
+            with engine.begin() as connection:
+                df.to_sql(
+                    'scan_rawscancamp',
+                    connection,
+                    if_exists="append",
+                    schema="cores_services",
+                    index=False
+                )
+
+            # nombre de lignes après
+            count_after = pd.read_sql("SELECT COUNT(*) FROM cores_services.scan_rawscancamp;", db).iloc[0,0]
+
+            print(f"Lignes avant : {count_before}, après : {count_after}")
+            print(f"{count_after - count_before} nouvelles lignes insérées ✅")
+            
                 
         #df.to_excel('rise_rawscandata.xlsx',index=False)
         print("Les données ont été traitées et insérées dans la base de données avec succès.")
 
     except Exception as e:
         print(e)
-
-    # Fermeture de la connexion à la base de données
+    
+    finally:
+        res = requests.post("https://webapp.arzibot.com/dbt/dbt-run/")
+        print(res.status_code)
+        
     db_conn.get_close()
-
 if __name__ == "__main__":
     main()

@@ -151,5 +151,5 @@ class CoordsGamesInteraction:
     input_open_characters = 'input tap 436 465'
 
     swipe_top_characters = 'input swipe 800 340 800 269 1500'
-    swipe_account_characrers = 'input swipe 800 340 800 200 1500'
+    swipe_account_characrers = 'input swipe 800 350 800 202 1500'
     input_btn_confirm_change = 'input tap 1026 640'

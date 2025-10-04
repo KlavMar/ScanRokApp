@@ -74,7 +74,7 @@ def scan(nb_scan:int=None,start:int=None,power_min:int=None,device=None)->dict:
         logger.info(index_range_ppl+1)
         start_time_scan_each = time.time()
 
-        k = 585 if index_range_ppl >= 4 or start >= 4 else Y + (index_range_ppl * 100)
+        k = 585 if index_range_ppl >= 4 else Y + (index_range_ppl * 100)
         input_open_gov = f'input tap 280 {k}'
         data = dict() 
         threads  = list()
@@ -215,11 +215,12 @@ def multi_scan(multi_kd:bool,nb_scan_kd:int,*args,**kwargs)->dict:
             export_data.export_to_csv()
         else:
             export_data.export_to_excel()
-        """ ecrire le process de changement de kd """
+
         time.sleep(5)
         if nb_scan_kd == 1:
             device.shell(coords_in_game.input_gov_close)
             return True
+        
         #logger.info("open menu")
         #device.shell(coords_in_game.open_gov)
         logger.info("Open settings")
@@ -242,6 +243,7 @@ def multi_scan(multi_kd:bool,nb_scan_kd:int,*args,**kwargs)->dict:
         
         for _ in range(kd//2):
             logger.info("swipe search kd")
+            time.sleep(2)
             device.shell(coords_in_game.swipe_account_characrers)
 
         if kd%2 ==0:
